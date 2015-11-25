@@ -389,42 +389,49 @@ export default DS.Adapter.extend(Ember.Evented, {
     });
 
     return new Promise(function(resolve, reject) {
-      var savedRelationships = Ember.A();
-      snapshot.record.eachRelationship(function(key, relationship) {
-        var save;
-        if (relationship.kind === 'hasMany') {
-          if (serializedRecord[key]) {
-            save = adapter._saveHasManyRelationship(store, typeClass, relationship, serializedRecord[key], recordRef, recordCache);
-            savedRelationships.push(save);
-            // Remove the relationship from the serializedRecord because otherwise we would clobber the entire hasMany
-            delete serializedRecord[key];
-          }
-        } else {
-          if (adapter.isRelationshipEmbedded(store, typeClass.modelName, relationship) && serializedRecord[key]) {
-            save = adapter._saveEmbeddedBelongsToRecord(store, typeClass, relationship, serializedRecord[key], recordRef);
-            savedRelationships.push(save);
-            delete serializedRecord[key];
-          }
-        }
-      });
+      debugger;
 
-      var relationshipsPromise = Ember.RSVP.allSettled(savedRelationships);
       var recordPromise = adapter._updateRecord(recordRef, serializedRecord);
 
-      Ember.RSVP.hashSettled({relationships: relationshipsPromise, record: recordPromise}).then(function(promises) {
-        var rejected = Ember.A(promises.relationships.value).filterBy('state', 'rejected');
-        if (promises.record.state === 'rejected') {
-          rejected.push(promises.record);
-        }
-        // Throw an error if any of the relationships failed to save
-        if (rejected.length !== 0) {
-          var error = new Error(`Some errors were encountered while saving ${typeClass} ${snapshot.id}`);
-              error.errors = rejected.mapBy('reason');
-          reject(error);
-        } else {
-          resolve();
-        }
+      Ember.RSVP.allSettled([recordPromise]).then(function (settleds) {
+        console.log('settleds', JSON.stringify(settleds[0]));
+        var savedRelationships = Ember.A();
+        snapshot.record.eachRelationship(function(key, relationship) {
+          var save;
+          if (relationship.kind === 'hasMany') {
+            if (serializedRecord[key]) {
+              save = adapter._saveHasManyRelationship(store, typeClass, relationship, serializedRecord[key], recordRef, recordCache);
+              savedRelationships.push(save);
+              // Remove the relationship from the serializedRecord because otherwise we would clobber the entire hasMany
+              delete serializedRecord[key];
+            }
+          } else {
+            if (adapter.isRelationshipEmbedded(store, typeClass.modelName, relationship) && serializedRecord[key]) {
+              save = adapter._saveEmbeddedBelongsToRecord(store, typeClass, relationship, serializedRecord[key], recordRef);
+              savedRelationships.push(save);
+              delete serializedRecord[key];
+            }
+          }
+        });
+
+        var relationshipsPromise = Ember.RSVP.allSettled(savedRelationships);
+
+        Ember.RSVP.hashSettled({relationships: relationshipsPromise, record: recordPromise}).then(function(promises) {
+          var rejected = Ember.A(promises.relationships.value).filterBy('state', 'rejected');
+          if (promises.record.state === 'rejected') {
+            rejected.push(promises.record);
+          }
+          // Throw an error if any of the relationships failed to save
+          if (rejected.length !== 0) {
+            var error = new Error(`Some errors were encountered while saving ${typeClass} ${snapshot.id}`);
+                error.errors = rejected.mapBy('reason');
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
       });
+
     }, `DS: FirebaseAdapter#updateRecord ${typeClass} to ${recordRef.toString()}`);
   },
 

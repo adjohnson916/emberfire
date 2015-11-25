@@ -143,6 +143,7 @@ describe('Integration: FirebaseAdapter - Updating records', function() {
               reference.once('value', function(data) {
                 currentData = data.val();
                 postData = currentData.posts[postId];
+                return pauseTest();
 
                 expect(postData.comments[commentId]).to.equal(true, 'the first hasMany link should still exist');
                 expect(postData.comments[secondCommentId]).to.be.an('undefined', 'the second hasMany link should be removed');
